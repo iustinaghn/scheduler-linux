@@ -1,0 +1,79 @@
+Nume: Ghenea Iustina
+Grupa: 332CC
+
+============================= Tema 4 - SO ===========================
+
+Am creat doua functii pentru adaugarea si extragerea dintr-o coada.
+Adaugarea se face in functie de parametrul where, la inceput (where = 0)
+sau la final (where = 1).
+Extragerea are loc in functie de prioritatea cea mai mare.
+
+
+Un thread are prioritate (tid), mutex (mutex_pl), cuanta de timp
+(time_quantum), si un pointer catre thread-ul urmator.
+Mutex-ul tine thread-ul in asteptare, pana ce thread-ul din running
+este eliberat.
+Expirarea cuantei de timp duce la preemptarea thread-ului respectiv.
+Pointerul catre urmatorul thread ajuta la pastrarea thread-urilor in
+cele 3 cozi: terminated, ready si blocking.
+
+Coada ready este alcatuita dintr-un vector de liste de thread-uri.
+Dimensiunea lor fiind de 1 + SO_MAX_PRIO.
+
+Coada blocking este alcatuita dintr-un vector cu dimensiunea io.
+
+Coada terminated este alcatuita dintr-o lista de thread-uri.
+
+Functia reschedule este apelata de toate functiile apelate de thread-uri,
+unde se verifica daca thread-ul curent se afla in starea running, caz 
+in care are loc replanificarea. Se decrementeaza cuanta de timp si
+se verifica daca a ajuns la 0. Daca nu, se verifica sa nu fi fost creat
+un alt thread cu o prioritate mai mare. Pt acest lucru, se extrage
+thread-ul cu cea mai mare prioritate din coada ready si li se compara 
+prioritatile, si daca nu e mai mare ca cea a thread-ului curent, este
+pus inapoi in coada ready, altfel acesta este pus in coada running, si
+cel curent in coada ready. De asemenea, lock-ul pt thread-ul din running
+este eliberat si se ocupa pt cel curent, asigurand astfel rularea doar
+a thread-ului din running.
+
+Urmatoare functii apeleaza la final functia reschedule pt a verifica
+daca thread-ul curent trebuie replanificat:
+
+--------
+In functia so_init are loc initializarea scheduler-ului cu cei doi
+parametri din antetul functiei. De asemenea, se aloca doua cozi 
+pentru threaduri: ready si blocking si coada thread-ului running.
+Se aloca o zona identificata prin cheia myThread, adica zona TSI.
+
+In cadrul functiei so_end se extrag thread-urile din ready, rand pe rand,
+fiind adaugate in running, timp in care thread-ul curent este blocat.
+Atunci cand ultimul thread din ready se termina, se reactiveaza thread-ul
+last_thread. Dupa ce toate thread-urile au fost deblocate, aflate in coada
+terminated, se dezaloca memoria pt ele.
+ 
+In functia so_fork se verifica daca thread-ul curent are lock pe mutexul sau.
+Se foloseste un thread local initializat cu prioritatea data ca parametru, si 
+se ocupa mutexul sau. Astfel, se porneste un thread nou care are handler-ul,
+prioritatea si structura de thread initializate, si care apeleaza functia
+start_thread. Aceszta e pus in coada ready.
+
+In functia so_signal se verifica daca thread-ul curent are lock pe mutexul sau.
+Apoi se itereaza prin coada blockink, se adauga in coada ready si se numara.
+Functia intoarce numarul de thread-uri eliberate.
+--------
+
+In functia so_exec se face lock pe mutex-ul thread-ului curent si se
+verifica replanificarea thread-ului running.
+
+In functia so_wait se insereaza thread-ul curent in coada blocking, pe pozitia
+dispozitivului primit ca parametru.
+
+In cadrul functiei start_thread se iau parametrii dati de apelul functiei din
+cadrul so_fork, si se seteaza valoarea din TSI de la cheia myThread. Apoi, se
+asteapta sa i se elibereze mutexul si apeleaza functia cu prioritatea data,
+primite ca argument. Dupa ce thread-ul isi termina executia, este adaugat in
+coada terminated si se extrage un nou thread din ready si se pune in running.
+Daca exista deja un thread in running, i se elibereaza mutexul ca acesta sa 
+isi poata termina executia, iar daca nu exista, se elibereaza last_thread.
+
+
